@@ -1,6 +1,9 @@
 import asyncio
 from dataclasses import dataclass
 from enum import Enum
+import errno
+import json
+import os
 from typing import Any
 from uuid import uuid4
 
@@ -9,9 +12,11 @@ from yt_dlp.utils import download_range_func
 from utils import convert_str_to_seconds
 from ytdlp_settings import NORMAL_QUALITY, BEST_QUALITY
 
+
 class VideoURLType(str, Enum):
     LOCAL = "local"
     EXTERNAL = "external"
+
 
 @dataclass
 class Video:
@@ -25,13 +30,13 @@ class VideoDownloader:
         self.cut_from: str | None = None
         self.cut_to: str | None = None
         self._progress = 0
+        self._filename: str | None = None
     
     def set_cut(self, cut_from: str, cut_to: str) -> None:
         self.cut_from = cut_from
         self.cut_to = cut_to
     
     def get_progress(self) -> int:
-        print(f"progress in get progress {self._progress}")
         return self._progress
     
     async def download_normal(self) -> Video:
@@ -47,12 +52,12 @@ class VideoDownloader:
             self._progress = 100
 
     async def _download(self, hq: bool = False) -> Video:
-        filename = await asyncio.to_thread(self._download_in_background, hq)
+        url = await asyncio.to_thread(self._download_in_background, hq)
         
-        return Video(url=filename, type=VideoURLType.LOCAL)
+        return Video(url=url, type=VideoURLType.LOCAL)
     
     def _download_in_background(self, hq: bool) -> None:
-        filename = f"{uuid4()}.mp4"
+        filename = self._filename
         
         if hq:
             format = BEST_QUALITY
@@ -70,8 +75,24 @@ class VideoDownloader:
             ytdl_options["download_ranges"] = download_range_func(None, [(convert_str_to_seconds(self.cut_from), convert_str_to_seconds(self.cut_to))])
         
         with YoutubeDL(ytdl_options) as ydl:
+            info = ydl.extract_info(self.url, download=False)
+            
+            with open("info", "w") as file:
+                file.write(json.dumps(info))
             ydl.download(self.url)
         
         return filename
+    
+    def __enter__(self) -> "VideoDownloader":
+        self._filename = f"{uuid4()}.mp4"
         
-        
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        try:
+            os.remove(self._filename)
+            print("sizee")
+            print(os.path.getsize(self._filename) / (1024 * 1024))
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
