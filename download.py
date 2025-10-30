@@ -75,10 +75,6 @@ class VideoDownloader:
             ytdl_options["download_ranges"] = download_range_func(None, [(convert_str_to_seconds(self.cut_from), convert_str_to_seconds(self.cut_to))])
         
         with YoutubeDL(ytdl_options) as ydl:
-            info = ydl.extract_info(self.url, download=False)
-            
-            with open("info", "w") as file:
-                file.write(json.dumps(info))
             ydl.download(self.url)
         
         return filename
