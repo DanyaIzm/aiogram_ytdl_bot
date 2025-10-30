@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 import errno
 import glob
-import json
 import os
 from typing import Any
 from uuid import uuid4

@@ -1,11 +1,8 @@
 import asyncio
-import json
 import logging
 import sys
 
 from aiogram import Bot, Dispatcher
-from aiogram.types import BotCommand
-from yt_dlp import YoutubeDL
 
 from bot_commands import BOT_COMMANDS
 from middlewares import AdminMiddleware
