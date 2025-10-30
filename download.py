@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from enum import Enum
 import errno
+import glob
 import json
 import os
 from typing import Any
@@ -46,9 +47,9 @@ class VideoDownloader:
         return await self._download(hq=True)
     
     def _progress_hook(self, data: dict[Any]) -> None:
-        if data['status'] == 'downloading':
-            self._progress = round(float(data['downloaded_bytes'])/float(data['total_bytes'])*100,1)
-        elif data['status'] == 'finished':
+        if data["status"] == "downloading":
+            self._progress = round(float(data["downloaded_bytes"])/float(data["total_bytes"])*100,1)
+        elif data["status"] == "finished":
             self._progress = 100
 
     async def _download(self, hq: bool = False) -> Video:
@@ -57,7 +58,7 @@ class VideoDownloader:
         return Video(url=url, type=VideoURLType.LOCAL)
     
     def _download_in_background(self, hq: bool) -> None:
-        filename = self._filename
+        filename = f"{self._filename}.mp4"
         
         if hq:
             format = BEST_QUALITY
@@ -68,7 +69,13 @@ class VideoDownloader:
             "outtmpl": filename,
             "format": format,
             "merge_output_format": "mp4",
-            "progress_hooks": [self._progress_hook]
+            "progress_hooks": [self._progress_hook],
+            "max_filesize": 50 * 1024 * 1024, # 50M
+            "writeinfojson": False,
+            "writethumbnail": False,
+            "writesubtitles": False,
+            "writeautomaticsub": False,
+            "nopart": True
         }
         
         if self.cut_from and self.cut_to:
@@ -80,15 +87,14 @@ class VideoDownloader:
         return filename
     
     def __enter__(self) -> "VideoDownloader":
-        self._filename = f"{uuid4()}.mp4"
+        self._filename = str(uuid4())
         
         return self
     
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         try:
-            os.remove(self._filename)
-            print("sizee")
-            print(os.path.getsize(self._filename) / (1024 * 1024))
+            for file in glob.glob(f"{self._filename}*"):
+                os.remove(file)
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise

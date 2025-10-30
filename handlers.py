@@ -2,8 +2,10 @@ import asyncio
 import logging
 import traceback
 from aiogram import F, Bot, Router
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command, CommandObject
 from aiogram.types import ErrorEvent, Message, FSInputFile
+from aiohttp import ClientOSError
 import yt_dlp
 
 from download import VideoDownloader, VideoURLType, Video
@@ -131,10 +133,13 @@ async def send_video_to_user(message: Message, video: Video) -> None:
 
 
 async def send_local_video_to_user(message: Message, video: Video) -> None:
-    video_file = FSInputFile(video.url)
-    
-    await message.answer_video(video_file)
-    
+    try:
+        video_file = FSInputFile(video.url)
+        await message.answer_video(video_file)
+    except TelegramNetworkError:
+        await message.answer("Не удалось отправить видео. Возможно, оно слишком тяжелое")
+        raise
+
 
 async def send_external_video_to_user(message: Message, video: Video) -> None:
     await message.answer(video.url)
